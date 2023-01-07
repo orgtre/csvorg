@@ -1,0 +1,103 @@
+* csvorg
+
+This [[https://www.gnu.org/savannah-checkouts/gnu/emacs/emacs.html][Emacs]] package lets you convert a set of [[https://orgmode.org][org-mode]] entries to a csv-file and the other way around. It extends and complements similar functionality provided by a combination of the built-in [[https://orgmode.org/worg/org-contrib/org-collector.html][org-collector]] and [[https://orgmode.org/manual/Built_002din-Table-Editor.html][org-table]], or the external package [[https://github.com/jplindstrom/emacs-org-transform-tree-table][emacs-org-transform-tree-table]]. The [[https://github.com/mhayashi1120/Emacs-pcsv][pcsv]] package is used as csv-parser when importing and =org-map-entries= is used to collect entries when exporting.
+
+
+** Usage
+
+Two commands are provided: =csvorg-export= and =csvorg-import=. They can be used interactively, but to access all options non-interactive use is required. Their docstring explains how to use them.
+
+
+*** Example
+
+#+begin_src elisp
+  (csvorg-export
+   "csvorg-test-from-org.csv" nil
+   '("ITEM" "prop1" "prop0" "TODO" "TAGS" "child1")
+   "LEVEL=2" '("csvorg-test.org") t t)
+#+end_src
+
+for a file /csvorg-test.org/ with content:
+
+#+begin_src
+* entries
+  :PROPERTIES:
+  :prop0: value of prop0
+  :END:
+
+** head1
+   :PROPERTIES:
+   :prop1: value of head1prop1
+   :END:
+
+*​** child1
+
+    content of head1child1
+
+
+** DONE head2 :tag1:tag2:
+   :PROPERTIES:
+   :prop1: value of head2prop1, with comma
+   :prop2: value of head2prop2
+   :END:
+
+*​** child1
+
+    content of head2child1, with comma
+
+    and linebreaks
+
+
+*​** child2
+
+    content of head2child2
+#+end_src
+
+will create the file /csvorg-test-from-org.csv/ with content:
+
+#+begin_src
+ITEM , prop1                            , prop0         , TODO, TAGS       , child1
+head1, value of head1prop1              , value of prop0,     ,            , content of head1child1
+head2, "value of head2prop1, with comma", value of prop0, DONE, :tag1:tag2:, "content of head2child1, with comma\n\nand linebreaks"
+#+end_src
+
+where the spaces between fields are only inserted here for display purposes.
+
+#+begin_src elisp
+  (csvorg-import
+   "csvorg-test-from-org.csv"
+   "csvorg-test-from-org-and-back.org"
+   nil nil
+   '("child1") "entries")
+#+end_src
+
+now imports this csv-file into org by creating the file /csvorg-test-from-org-and-back.org/ with contents:
+
+#+begin_src 
+* entries
+
+** head1
+   :PROPERTIES:
+   :ITEM:  head1
+   :prop1: value of head1prop1
+   :prop0: value of prop0
+   :END:
+
+*​** child1
+
+    content of head1child1
+
+
+** head2
+   :PROPERTIES:
+   :ITEM:  head2
+   :prop1: value of head2prop1, with comma
+   :prop0: value of prop0
+   :TODO:  DONE
+   :TAGS:  :tag1:tag2:
+   :END:
+
+*​** child1
+
+    content of head2child1, with comma\n\nand linebreaks
+#+end_src
