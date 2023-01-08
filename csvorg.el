@@ -190,8 +190,7 @@ parsing. If ^M occurs in output, try setting this to utf-8-dos."
   "Format parsed csv-file row ROW as org-entry string.
 Subroutine of `csvorg-import', which see."
   (let* ((heading (funcall heading-constructor row colnames))
-	 (out (concat "** " heading "\n"))
-	 (nsub 0))
+	 (out (concat "** " heading "\n")))
     (when proppos
       (setq out (concat out ":PROPERTIES:\n"))
       (dolist (i proppos)
@@ -206,17 +205,15 @@ Subroutine of `csvorg-import', which see."
 			  cell
 			  "\n")))))
       (setq out (concat out ":END:\n")))
+    (setq out (concat out csvorg-hh-sep))
     (dolist (i subhpos)
       (let ((cell (csvorg--transform-field (nth i row) transforms)))
 	(when (and cell (not (equal cell "")))
-	  (setq nsub (+ nsub 1))
 	  (when csvorg-import-newlines
 	    (setq cell (string-replace "\\n" "\n" cell)))
 	  (setq out (concat out
-			    csvorg-hh-sep "*** " (nth i colnames)
+			    "*** " (nth i colnames)
 			    "\n" csvorg-hc-sep cell "\n" csvorg-ch-sep)))))
-    (when (equal nsub 0)
-      (setq out (concat out csvorg-hh-sep)))
     out))
 
 
