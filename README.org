@@ -90,14 +90,21 @@ now imports this csv-file into org by creating the file /csvorg-test-from-org-an
 
 ** head2
    :PROPERTIES:
-   :ITEM:  head2
+   :'ITEM: head2
    :prop1: value of head2prop1, with comma
    :prop0: value of prop0
-   :TODO:  DONE
-   :TAGS:  :tag1:tag2:
+   :'TODO: DONE
+   :'TAGS: :tag1:tag2:
    :END:
 
 *​** child1
 
-    content of head2child1, with comma\n\nand linebreaks
+    content of head2child1, with comma
+
+    and linebreaks
 #+end_src
+
+Note the following:
+- All Org entries user properties, special properties, and children (subheadings with contents) can be exported.
+- To determine entries for export, the flexible [[https://orgmode.org/manual/Matching-tags-and-properties.html][match]] and scope arguments of =org-map-entries= can be used.
+- If all entries user properties and children are exported, no special properties are used, property inheritance is disabled, entries contain no extra leading or trailing whitespace, and all exported entries are children of the same parent, then one gets back the same thing after an export and import.

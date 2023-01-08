@@ -29,31 +29,53 @@
   "Convert between csv and org."
   :group 'text)
 
-(defcustom csvorg-default-topheading "entries"
+(defcustom csvorg-import-topheading "entries"
   "See `csvorg-import'."
   :type 'string)
 
-(defcustom csvorg-default-heading-constructor #'car
+(defcustom csvorg-import-heading-constructor #'car
   "See `csvorg-import'."
   :type 'function)
 
+(defcustom csvorg-import-newlines t
+  "When non-nil, literally insert newlines on import.
+But only for contents of subheadings (subhcols)."
+  :type 'bool)
+
 (defcustom csvorg-import-transform-functions
   (list (lambda (f) (string-trim f)))
-  "Functions applied to each field when importing to org.
+  "Hook applied to each field when importing to org.
 Each function in this list will be called (in order) with the
 field value string to be imported as the sole argument, and should
 return the (possibly) transformed field value."
-  :type 'list)
+  :type 'hook)
+
+(defcustom csvorg-import-propcols-transform-functions
+  (list (lambda (c) (string-trim c))
+	(lambda (c) (string-replace " " "_" c))
+	(lambda (c)
+	  (if (member c org-special-properties)
+	      (progn
+		(message
+		 (concat "Warning: Special properties in"
+			 " property column names."))
+		(concat "'" c))
+	    c)))
+  "Hook applied to each property name when importing to org.
+Each function in this list will be called (in order) with the
+property column name string as the sole argument, and should
+return the (possibly) transformed column name value."
+  :type 'hook)
 
 (defcustom csvorg-export-transform-functions
   (list (lambda (f) (if (not f) "" f))
 	(lambda (f) (string-trim f))
 	(lambda (f) (string-replace "\n" "\\n" f)))
-  "Functions applied to each field when exporting from org.
+  "Hook applied to each field when exporting from org.
 Each function in this list will be called (in order) with the
 field value string to be exported as the sole argument, and should
 return the (possibly) transformed field value."
-  :type 'list)
+  :type 'hook)
 
 (defcustom csvorg-ch-sep "\n\n"
   "Separator between org entry content and next heading.
@@ -83,11 +105,11 @@ Used when constructing org entries from csv."
 Each row in CSVFILE corresponds to one `org-mode' entry in ORGFILE.
 The entries are placed at the end of ORGFILE under a newly created
 top-level heading TOPHEADING, which defaults to
-`csvorg-default-topheading'.
+`csvorg-import-topheading'.
 
 HEADING-CONSTRUCTOR is a function which creates an entry heading
 given as argument one parsed CSVFILE-row in list form. It defaults
-to `csvorg-default-heading-constructor'.
+to `csvorg-import-heading-constructor'.
 
 COLNAMES is a list of column names. If it is nil, column names
 are read from the first row of CSVFILE. Avoid COLNAMES in
@@ -100,8 +122,8 @@ be inserted as org-entry subheadings. If neither is given,
 PROPCOLS defaults to COLNAMES and SUBHCOLS to nil. If only one
 of them is given, the other defaults to the remaining COLNAMES.
 
-TRANSFORMS is a list of functions used to transform the field
-values. It defaults to `csvorg-import-transform-functions'.
+TRANSFORMS is a symbol for a list of functions used to transform
+the field values. It defaults to `csvorg-import-transform-functions'.
 
 CODING-SYSTEM is passed on to `pcsv-parse-file', which does the
 parsing. If ^M occurs in output, try setting this to utf-8-dos."
@@ -132,10 +154,11 @@ parsing. If ^M occurs in output, try setting this to utf-8-dos."
     (unless (seq-set-equal-p colnames (append propcols subhcols))
       (message
        "Warning: propcols and subhcols are not compatible with colnames."))
+    (setq colnames (csvorg-transform-colnames colnames proppos))
     (with-current-buffer (find-file-noselect orgfile)
       (goto-char (point-max))
       (org-insert-heading '(4) t t)
-      (insert (or topheading csvorg-default-topheading) "\n" csvorg-hh-sep)
+      (insert (or topheading csvorg-import-topheading) "\n" csvorg-hh-sep)
       (insert
        (mapconcat
 	(lambda (row)
@@ -144,10 +167,20 @@ parsing. If ^M occurs in output, try setting this to utf-8-dos."
 	   (or transforms
 	       'csvorg-import-transform-functions)
 	   (or heading-constructor
-	       csvorg-default-heading-constructor)))
+	       csvorg-import-heading-constructor)))
 	data))
       (save-buffer))
     (message "Finished importing.")))
+
+
+(defun csvorg-transform-colnames (colnames proppos)
+  "Apply `csvorg-import-propcols-transform-functions'."
+  (dolist (pos proppos)
+    (setf (nth pos colnames)
+	  (csvorg--transform-field
+	   (nth pos colnames)
+	   'csvorg-import-propcols-transform-functions)))
+  colnames)
 
 
 (defun csvorg--row-to-entry-string (row colnames proppos subhpos
@@ -176,6 +209,8 @@ Subroutine of `csvorg-import', which see."
       (let ((cell (csvorg--transform-field (nth i row) transforms)))
 	(when (and cell (not (equal cell "")))
 	  (setq nsub (+ nsub 1))
+	  (when csvorg-import-newlines
+	    (setq cell (string-replace "\\n" "\n" cell)))
 	  (setq out (concat out
 			    csvorg-hh-sep "*** " (nth i colnames)
 			    "\n" csvorg-hc-sep cell "\n" csvorg-ch-sep)))))
@@ -213,8 +248,8 @@ IF MATCH is non-nil it is used instead of IDPROP.
 When REPLACE is non-nil, CSVFILE is overwritten if it exists.
 Set INHERIT non-nil to retrieve properties with inheritance.
 
-TRANSFORMS is a list of functions used to transform the field
-values. It defaults to `csvorg-export-transform-functions'."
+TRANSFORMS is a symbol for a list of functions used to transform
+the field values. It defaults to `csvorg-export-transform-functions'."
   (interactive
    (list (read-file-name "Output csv-file: ")
 	 (org-read-property-name)
