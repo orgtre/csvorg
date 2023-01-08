@@ -67,7 +67,7 @@ where the spaces between fields are only inserted here for display purposes.
   (csvorg-import
    "csvorg-test-from-org.csv"
    "csvorg-test-from-org-and-back.org"
-   nil nil
+   nil '("prop1" "prop0" "TODO" "TAGS")
    '("child1") "entries")
 #+end_src
 
@@ -78,7 +78,6 @@ now imports this csv-file into org by creating the file /csvorg-test-from-org-an
 
 ** head1
    :PROPERTIES:
-   :ITEM:  head1
    :prop1: value of head1prop1
    :prop0: value of prop0
    :END:
@@ -90,7 +89,6 @@ now imports this csv-file into org by creating the file /csvorg-test-from-org-an
 
 ** head2
    :PROPERTIES:
-   :'ITEM: head2
    :prop1: value of head2prop1, with comma
    :prop0: value of prop0
    :'TODO: DONE
@@ -107,4 +105,6 @@ now imports this csv-file into org by creating the file /csvorg-test-from-org-an
 Note the following:
 - All Org entries user properties, special properties, and children (subheadings with contents) can be exported.
 - To determine entries for export, the flexible [[https://orgmode.org/manual/Matching-tags-and-properties.html][match]] and scope arguments of =org-map-entries= can be used.
-- If all entries user properties and children are exported, no special properties are used, property inheritance is disabled, entries contain no extra leading or trailing whitespace, and all exported entries are children of the same parent, then one gets back the same thing after an export and import.
+- On import the Org entry heading can be constructed using an arbitrary function of the corresponding csv row and the column names, with sensible defaults.
+- Hooks are provided for transforming column names on import, and field values on import and export, again with sensible defaults.
+- If all entries user properties and children are exported, no special properties are used except ITEM, property inheritance is disabled, entries contain no extra leading or trailing whitespace, and all exported entries are children of the same parent, then one gets back the same thing after an export and import.

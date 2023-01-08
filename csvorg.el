@@ -33,7 +33,8 @@
   "See `csvorg-import'."
   :type 'string)
 
-(defcustom csvorg-import-heading-constructor #'car
+(defcustom csvorg-import-heading-constructor
+  #'csvorg-default-heading-constructor
   "See `csvorg-import'."
   :type 'function)
 
@@ -108,8 +109,8 @@ top-level heading TOPHEADING, which defaults to
 `csvorg-import-topheading'.
 
 HEADING-CONSTRUCTOR is a function which creates an entry heading
-given as argument one parsed CSVFILE-row in list form. It defaults
-to `csvorg-import-heading-constructor'.
+given as argument one parsed CSVFILE-row in list form and a list
+of column names. It defaults to `csvorg-import-heading-constructor'.
 
 COLNAMES is a list of column names. If it is nil, column names
 are read from the first row of CSVFILE. Avoid COLNAMES in
@@ -133,7 +134,7 @@ parsing. If ^M occurs in output, try setting this to utf-8-dos."
 	 (colnames (or colnames (pop data)))
 	 (propcols (if (and (not propcols) (not subhcols))
 		       colnames
-		     (if subhcols
+		     (if (and (not propcols) subhcols)
 			 (seq-difference colnames subhcols)
 		       propcols)))
 	 (subhcols (or subhcols (seq-difference colnames propcols)))
@@ -188,7 +189,7 @@ parsing. If ^M occurs in output, try setting this to utf-8-dos."
 					heading-constructor)
   "Format parsed csv-file row ROW as org-entry string.
 Subroutine of `csvorg-import', which see."
-  (let* ((heading (funcall heading-constructor row))
+  (let* ((heading (funcall heading-constructor row colnames))
 	 (out (concat "** " heading "\n"))
 	 (nsub 0))
     (when proppos
@@ -225,6 +226,18 @@ Subroutine of `csvorg-import', which see."
 		    (lambda (fun)
 		      (setq field (funcall fun field)) nil))
   field)
+
+
+(defun csvorg-default-heading-constructor (row colnames)
+  "Constructs entry heading given ROW and COLNAMES.
+If there is a column named ITEM or HEADING use it,
+else use the first column."
+  (if-let ((colsup (mapcar 'upcase colnames))
+	   (pos (or (cl-position "ITEM" colsup :test 'equal)
+		    (cl-position "'ITEM" colsup :test 'equal)
+		    (cl-position "HEADING" colsup :test 'equal))))
+      (nth pos row)
+    (car row)))
 
 
 ;;;; Exporting org to csv
